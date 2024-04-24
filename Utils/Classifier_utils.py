@@ -96,7 +96,8 @@ def convert_examples_to_features(examples, label_list, max_seq_length,
         try:
             label_id = label_map[example.label]
         except:
-            print(example.label)
+            print(example.label,'is not in label_set')
+            input('Press any key to ignore this error')
             continue
         idx = int(example.guid)
 

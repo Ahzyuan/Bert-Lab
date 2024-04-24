@@ -1,9 +1,10 @@
 # coding=utf-8
 
 import numpy as np
+import pandas as pd
 from tqdm import tqdm
-import torch
-from tensorboardX import SummaryWriter
+import torch,os
+from torch.utils.tensorboard import SummaryWriter
 import time
 
 from Utils.utils import classifiction_metric
@@ -34,8 +35,7 @@ output_model_file, output_config_file, log_dir, print_step, early_stop):
 
     early_stop_times = 0
 
-    writer = SummaryWriter(
-        log_dir=log_dir + '/' + time.strftime("%Y-%m-%d-%H:%M:%S", time.localtime(time.time())))
+    writer = SummaryWriter(log_dir=log_dir + '/' + time.strftime("%Y-%m-%d-%H_%M_%S", time.localtime(time.time())))
 
 
     best_dev_loss = float('inf')
@@ -48,7 +48,7 @@ output_model_file, output_config_file, log_dir, print_step, early_stop):
         if early_stop_times >= early_stop:
             break
 
-        print(f'---------------- Epoch: {epoch+1:02} ----------')
+        print(f'---------------- Epoch: {epoch+1:02} ----------------')
 
         epoch_loss = 0
 
@@ -211,3 +211,29 @@ def evaluate_save(model, dataloader, criterion, device, label_list):
 
     acc, report, auc = classifiction_metric(all_preds, all_labels, label_list)
     return epoch_loss/len(dataloader), acc, report, auc, all_idxs, all_labels, all_preds
+
+def predict(model, dataloader, device, label_list, save_dir):
+
+    model.eval()
+
+    predict_labels, data_idxs = [], []
+
+    for idxs, input_ids, input_mask, segment_ids, label_ids in tqdm(dataloader, desc="Eval"):
+        input_ids = input_ids.to(device)
+        input_mask = input_mask.to(device)
+        segment_ids = segment_ids.to(device)
+
+        with torch.no_grad():
+            logits = model(input_ids, segment_ids, input_mask, labels=None)
+
+        preds = logits.detach().cpu().numpy()
+        outputs = np.argmax(preds, axis=1)
+        predict_labels.extend(outputs.tolist())
+
+        idxs = idxs.detach().cpu().numpy()
+        data_idxs.extend(idxs.tolist())
+
+
+    res = pd.DataFrame({'Id':data_idxs,'Category':predict_labels})
+    res['Category'] = res['Category'].apply(lambda x:label_list[x])
+    res.to_csv(os.path.join(save_dir,'submission.csv'),index=False)

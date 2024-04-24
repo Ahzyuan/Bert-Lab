@@ -16,7 +16,7 @@ from pytorch_pretrained_bert.optimization import BertAdam
 from Utils.utils import get_device
 from Utils.load_datatsets import load_data
 
-from train_evalute import train, evaluate, evaluate_save
+from train_evalute import train, evaluate, evaluate_save,predict
 
 
 def main(config, model_times, label_list):
@@ -168,14 +168,14 @@ def main(config, model_times, label_list):
 
     model.load_state_dict(torch.load(output_model_file))
     model.to(device)
-
+    '''
     # 损失函数准备
     criterion = nn.CrossEntropyLoss()
     criterion = criterion.to(device)
 
     # test the model
     test_loss, test_acc, test_report, test_auc, all_idx, all_labels, all_preds = evaluate_save(
-        model, test_dataloader, criterion, device, label_list)
+        model, test_dataloader, criterion, device, label_list, save_dir=config.output_dir)
     print("-------------- Test -------------")
     print(f'\t  Loss: {test_loss: .3f} | Acc: {test_acc*100: .3f} % | AUC:{test_auc}')
 
@@ -187,3 +187,5 @@ def main(config, model_times, label_list):
     for label in print_list:
         print('\t {}: Precision: {} | recall: {} | f1 score: {}'.format(
             label, test_report[label]['precision'], test_report[label]['recall'], test_report[label]['f1-score']))
+    '''
+    predict(model, test_dataloader, device, label_list, save_dir=config.output_dir)

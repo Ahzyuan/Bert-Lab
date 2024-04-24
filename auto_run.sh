@@ -1,0 +1,1 @@
+python run_kaggle.py --do_train --num_train_epochs=100 --train_batch_size=32 --print_step=100
