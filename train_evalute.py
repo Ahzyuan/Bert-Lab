@@ -35,7 +35,7 @@ output_model_file, output_config_file, log_dir, print_step, early_stop):
 
     early_stop_times = 0
 
-    writer = SummaryWriter(log_dir=log_dir + '/' + time.strftime("%Y-%m-%d-%H_%M_%S", time.localtime(time.time())))
+    writer = SummaryWriter(log_dir=log_dir)# + '/' + time.strftime("%Y-%m-%d-%H_%M_%S", time.localtime(time.time())))
 
 
     best_dev_loss = float('inf')
@@ -54,8 +54,8 @@ output_model_file, output_config_file, log_dir, print_step, early_stop):
 
         train_steps = 0
 
-        all_preds = np.array([], dtype=int)
-        all_labels = np.array([], dtype=int)
+        all_preds = []
+        all_labels = []
 
         for step, batch in enumerate(tqdm(train_dataloader, desc="Iteration")):
             model.train()
@@ -80,67 +80,68 @@ output_model_file, output_config_file, log_dir, print_step, early_stop):
             epoch_loss += loss.item()
             preds = logits.detach().cpu().numpy()
             outputs = np.argmax(preds, axis=1)
-            all_preds = np.append(all_preds, outputs)
-            label_ids = label_ids.to('cpu').numpy()
-            all_labels = np.append(all_labels, label_ids)
+            all_preds.extend(outputs.tolist())
+            label_ids = label_ids.to('cpu').numpy().tolist()
+            all_labels.extend(label_ids)
 
-            if (step + 1) % gradient_accumulation_steps == 0:
-                optimizer.step()
-                optimizer.zero_grad()
-                global_step += 1
+            #if (step + 1) % gradient_accumulation_steps == 0:
+            optimizer.step()
+            optimizer.zero_grad()
+            global_step += 1
             
-                if global_step % print_step == 0 and global_step != 0:
+                #if global_step % print_step == 0 and global_step != 0:
 
-                    """ 打印Train此时的信息 """
-                    train_loss = epoch_loss / train_steps
-                    train_acc, train_report, train_auc = classifiction_metric(all_preds, all_labels, label_list)
+        """ 打印Train此时的信息 """
+        train_loss = epoch_loss / train_steps
+        train_acc = np.sum(np.array(all_preds)==np.array(all_labels))/len(all_labels)
+        #train_acc, train_report, train_auc = classifiction_metric(all_preds, all_labels, label_list)
 
-                    dev_loss, dev_acc, dev_report, dev_auc = evaluate(model, dev_dataloader, criterion, device, label_list)
+        dev_acc = evaluate(model, dev_dataloader, criterion, device, label_list)
 
-                    c = global_step // print_step
-                    writer.add_scalar("loss/train", train_loss, c)
-                    writer.add_scalar("loss/dev", dev_loss, c)
+        #c = global_step // print_step
+        writer.add_scalar("epoch_loss", train_loss, epoch)
+        #writer.add_scalar("loss/dev", dev_loss, epoch)
 
-                    writer.add_scalar("acc/train", train_acc, c)
-                    writer.add_scalar("acc/dev", dev_acc, c)
+        writer.add_scalar("train_acc", train_acc, epoch)
+        writer.add_scalar("val_acc", dev_acc, epoch)
 
-                    writer.add_scalar("auc/train", train_auc, c)
-                    writer.add_scalar("auc/dev", dev_auc, c)
+        #writer.add_scalar("auc/train", train_auc, epoch)
+        #writer.add_scalar("auc/dev", dev_auc, epoch)
 
-                    for label in label_list:
-                        writer.add_scalar(label + ":" + "f1/train", train_report[label]['f1-score'], c)
-                        writer.add_scalar(label + ":" + "f1/dev",
-                                        dev_report[label]['f1-score'], c)
+        #for label in label_list:
+        #    writer.add_scalar(label + ":" + "f1/train", train_report[label]['f1-score'], c)
+        #    writer.add_scalar(label + ":" + "f1/dev",
+        #                    dev_report[label]['f1-score'], c)
 
-                    print_list = ['macro avg', 'weighted avg']
-                    for label in print_list:
-                        writer.add_scalar(label + ":" + "f1/train",
-                                        train_report[label]['f1-score'], c)
-                        writer.add_scalar(label + ":" + "f1/dev",
-                                        dev_report[label]['f1-score'], c)
-                    
-                    # # 以损失取优
-                    # if dev_loss < best_dev_loss:
-                    #     best_dev_loss = dev_loss
-                    
-                    # 以 acc 取优
-                    if dev_acc > best_acc:
-                        best_acc = dev_acc
-                        
-                    # 以 auc 取优
-                    # if dev_auc > best_auc:
-                    #     best_auc = dev_auc
+        #print_list = ['macro avg', 'weighted avg']
+        #for label in print_list:
+        #    writer.add_scalar(label + ":" + "f1/train",
+        #                    train_report[label]['f1-score'], c)
+        #    writer.add_scalar(label + ":" + "f1/dev",
+        #                    dev_report[label]['f1-score'], c)
+        
+        # # 以损失取优
+        # if dev_loss < best_dev_loss:
+        #     best_dev_loss = dev_loss
+        
+        # 以 acc 取优
+        if dev_acc >= best_acc:
+            best_acc = dev_acc
+            
+        # 以 auc 取优
+        # if dev_auc > best_auc:
+        #     best_auc = dev_auc
 
 
-                        model_to_save = model.module if hasattr(
-                            model, 'module') else model
-                        torch.save(model_to_save.state_dict(), output_model_file)
-                        with open(output_config_file, 'w') as f:
-                            f.write(model_to_save.config.to_json_string())
+            model_to_save = model.module if hasattr(
+                model, 'module') else model
+            torch.save(model_to_save.state_dict(), output_model_file)
+            with open(output_config_file, 'w') as f:
+                f.write(model_to_save.config.to_json_string())
 
-                        early_stop_times = 0
-                    else:
-                        early_stop_times += 1
+            early_stop_times = 0
+        else:
+            early_stop_times += 1
 
     writer.close()
                     
@@ -149,10 +150,10 @@ def evaluate(model, dataloader, criterion, device, label_list):
 
     model.eval()
 
-    all_preds = np.array([], dtype=int)
-    all_labels = np.array([], dtype=int)
+    all_preds = []
+    all_labels = []
 
-    epoch_loss = 0
+    #epoch_loss = 0
 
     for _, input_ids, input_mask, segment_ids, label_ids in tqdm(dataloader, desc="Eval"):
         input_ids = input_ids.to(device)
@@ -162,19 +163,20 @@ def evaluate(model, dataloader, criterion, device, label_list):
 
         with torch.no_grad():
             logits = model(input_ids, segment_ids, input_mask, labels=None)
-        loss = criterion(logits.view(-1, len(label_list)), label_ids.view(-1))
+        #loss = criterion(logits.view(-1, len(label_list)), label_ids.view(-1))
 
         preds = logits.detach().cpu().numpy()
         outputs = np.argmax(preds, axis=1)
-        all_preds = np.append(all_preds, outputs)
+        all_preds.extend(outputs.tolist())
 
-        label_ids = label_ids.to('cpu').numpy()
-        all_labels = np.append(all_labels, label_ids)
+        label_ids = label_ids.to('cpu').numpy().tolist()
+        all_labels.extend(label_ids)
 
-        epoch_loss += loss.mean().item()
+        #epoch_loss += loss.mean().item()
 
-    acc, report, auc = classifiction_metric(all_preds, all_labels, label_list)
-    return epoch_loss/len(dataloader), acc, report, auc
+    val_acc = np.sum(np.array(all_preds)==np.array(all_labels))/len(all_labels)
+    #acc, report, auc = classifiction_metric(all_preds, all_labels, label_list)
+    return val_acc #epoch_loss/len(dataloader), acc, report, auc
 
 
 def evaluate_save(model, dataloader, criterion, device, label_list):
@@ -231,9 +233,12 @@ def predict(model, dataloader, device, label_list, save_dir):
         predict_labels.extend(outputs.tolist())
 
         idxs = idxs.detach().cpu().numpy()
-        data_idxs.extend(idxs.tolist())
+        data_idxs.extend((idxs-1).tolist())
 
 
     res = pd.DataFrame({'Id':data_idxs,'Category':predict_labels})
     res['Category'] = res['Category'].apply(lambda x:label_list[x])
-    res.to_csv(os.path.join(save_dir,'submission.csv'),index=False)
+    res.sort_values(by='Id', ascending=True, inplace=True)
+    model_name = os.path.basename(os.path.dirname(save_dir))
+    csv_name = model_name.lower() + '_' + ''.join(os.path.basename(save_dir)[5:].replace('_','-').split('-'))+'.csv'
+    res.to_csv(os.path.join(save_dir,csv_name),index=False)

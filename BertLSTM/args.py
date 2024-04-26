@@ -83,7 +83,7 @@ def get_args(data_dir, output_dir, cache_dir, bert_vocab_file, bert_model_dir, l
                         type=float,
                         help="Total number of training epochs to perform.")
     parser.add_argument("--warmup_proportion",
-                        default=0.1,
+                        default=0.25,
                         type=float,
                         help="Proportion of training to perform linear learning rate warmup for. "
                         "E.g., 0.1 = 10%% of training.")
@@ -107,10 +107,10 @@ def get_args(data_dir, output_dir, cache_dir, bert_vocab_file, bert_model_dir, l
     parser.add_argument("--early_stop", type=int, default=50,
                         help="提前终止，多少次dev loss 连续增大，就不再训练")
 
-    parser.add_argument("--hidden_size", default=300, type=int, help="隐层特征维度")
+    parser.add_argument("--hidden_size", default=75, type=int, help="隐层特征维度")
     parser.add_argument('--num_layers', default=2, type=int, help='RNN层数')
     parser.add_argument("--bidirectional", default=True, type=bool)
-    parser.add_argument("--dropout", default=0.2, type=float)
+    parser.add_argument("--dropout", default=0.5, type=float)
     
     parser.add_argument("--gpu_ids", type=str, default="0", help="gpu 的设备id")
     config = parser.parse_args()

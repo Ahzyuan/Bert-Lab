@@ -3,7 +3,7 @@
 import argparse
 
 
-def get_args(data_dir, output_dir, cache_dir, bert_vocab_file, bert_model_dir, log_dir):
+def get_args(data_dir, output_dir, cache_dir, bert_vocab_file, bert_model_dir, log_dir, max_seq_length):
 
     parser = argparse.ArgumentParser(description='BERT Baseline')
 
@@ -53,7 +53,7 @@ def get_args(data_dir, output_dir, cache_dir, bert_vocab_file, bert_model_dir, l
                         help="Set this flag if you are using an uncased model.")
 
     parser.add_argument("--max_seq_length",
-                        default=10,
+                        default=max_seq_length,
                         type=int,
                         help="The maximum total input sequence length after WordPiece tokenization. \n"
                              "Sequences longer than this will be truncated, and sequences shorter \n"

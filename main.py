@@ -20,9 +20,11 @@ from train_evalute import train, evaluate, evaluate_save,predict
 
 
 def main(config, model_times, label_list):
+    model_times = time.strftime("%Y-%m-%d-%H_%M_%S", time.localtime(time.time()))
 
     if not os.path.exists(config.output_dir + model_times):
         os.makedirs(config.output_dir + model_times)
+        save_path = os.path.join(config.output_dir, model_times)
 
     if not os.path.exists(config.cache_dir + model_times):
         os.makedirs(config.cache_dir + model_times)
@@ -99,6 +101,9 @@ def main(config, model_times, label_list):
         elif config.model_name == "BertDPCNN":
             from BertDPCNN.BertDPCNN import BertDPCNN
             model = BertDPCNN.from_pretrained(config.bert_model_dir, cache_dir=config.cache_dir, num_labels=num_labels, filter_num=config.filter_num)
+        else:
+            from BertHAN.BertHAN import BertHAN
+            model = BertHAN.from_pretrained(config.bert_model_dir, cache_dir=config.cache_dir, num_labels=num_labels)
 
 
 
@@ -127,7 +132,7 @@ def main(config, model_times, label_list):
         criterion = criterion.to(device)
 
         train(config.num_train_epochs, n_gpu, model, train_dataloader, dev_dataloader, optimizer,
-              criterion, config.gradient_accumulation_steps, device, label_list, output_model_file, output_config_file, config.log_dir, config.print_step, config.early_stop)
+              criterion, config.gradient_accumulation_steps, device, label_list, output_model_file, output_config_file, save_path, config.print_step, config.early_stop)
 
     """ Test """
 
@@ -188,4 +193,4 @@ def main(config, model_times, label_list):
         print('\t {}: Precision: {} | recall: {} | f1 score: {}'.format(
             label, test_report[label]['precision'], test_report[label]['recall'], test_report[label]['f1-score']))
     '''
-    predict(model, test_dataloader, device, label_list, save_dir=config.output_dir)
+    predict(model, test_dataloader, device, label_list, save_dir=save_path)

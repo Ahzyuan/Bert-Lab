@@ -1,4 +1,5 @@
 __pycache__/
-Bert_weight/
+Bert_weight/bert-base-uncased.tar.gz
 .Cache/
 .Log/
+*.bin
